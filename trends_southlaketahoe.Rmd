@@ -170,7 +170,7 @@ MannKendall(clim.mwy$precip)
 We might also look at difference in means (or variance) between the two periods ...Using
 
 T-test
-or Rank-Sum if we think data is not normally distributed
+or Rank-Sum if we think data is not normally distributed..
 
 
 ```{r ttest, echo=TRUE}
