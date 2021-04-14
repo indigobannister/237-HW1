@@ -39,22 +39,30 @@ clim_mwy = clim %>%
 colors <- c("Minimum Temperature" = "blue", "Maximum Temperature" = "red")
 
 ggplot(clim_mwy, aes(x = year, y = tmax)) +
-  geom_point(aes(color = "Maximum Temperature")) +
+  geom_point(col = "red") +
   stat_smooth(method="lm", col="red") +
-  scale_y_continuous(limits=c(min(clim_mwy$tmin), max(clim_mwy$tmax)))+
-  geom_point(data=clim_mwy, aes(x = year, tmin, color = "Minimum Temperature")) +
+  scale_y_continuous(limits=c(min(clim_mwy$tmax), max(clim_mwy$tmax)))+
+  labs(y = "Average Annual Temperature (Farenheit)",
+       x = "Year",
+       subtitle = "Average Daily Maximum") +
+  annotate(geom="text", x=2010, y=62, label="+0.07 F/year",
+              color="red") +
+  theme_minimal()
+
+ggsave("temp_max.jpeg")
+
+ggplot(clim_mwy) +
+  scale_y_continuous(limits=c(min(clim_mwy$tmin), max(clim_mwy$tmin)))+
+  geom_point(data=clim_mwy, aes(x = year, tmin), col = "blue") +
   stat_smooth(data=clim_mwy, aes(x = year, tmin), col="blue", method="lm") +
   labs(y = "Average Annual Temperature (Farenheit)",
        x = "Year",
-       colour = "") +
-  scale_color_manual(values = colors) +
-  annotate(geom="text", x=2010, y=52, label="+0.07 F/year",
-              color="red") +
-  annotate(geom="text", x=2010, y=35, label="+0.05 F/year",
+       subtitle = "Average Daily Minimum") +
+  annotate(geom="text", x=2010, y=32, label="+0.05 F/year",
               color="blue") +
   theme_minimal()
 
-ggsave("temp_ave.jpeg")
+ggsave("temp_min.jpeg")
 
 ```
 
@@ -63,11 +71,13 @@ ggsave("temp_ave.jpeg")
 res_min = lm(tmin~year, data=clim_mwy)
 summary(res_min)
 confint(res_min,"year", level=0.95)
+predict(res_min)
 
 # Calculate slope of trend lines - tmax
 res_max = lm(tmax~year, data=clim_mwy)
 summary(res_max)
 confint(res_max,"year", level=0.95)
+predict(res_max)
 
 ```
 
