@@ -1,0 +1,134 @@
+---
+title: "Temperature - IB"
+author: "Indigo Bannister"
+date: "4/14/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(lubridate)
+library(ggplot2)
+library(tidyverse)
+library(janitor)
+library(Kendall)
+
+```
+
+
+```{r}
+# Read in data
+clim <- read.table("2532217.csv",fill=TRUE,sep=',',header=T) %>% 
+  mutate(date = as.Date(DATE)) %>% 
+  clean_names %>% 
+  select(tmax:date_2, -tobs)
+
+```
+
+```{r}
+# filter climate data and summarize by year
+clim_mwy = clim %>% 
+  drop_na() %>% 
+  mutate( year = year(date_2)) %>% 
+  filter(year != 2021) %>% 
+  group_by(year) %>% 
+  summarize(tmax=mean(tmax), tmin=mean(tmin))
+
+# Plot trends with smoothed trend line
+colors <- c("Minimum Temperature" = "blue", "Maximum Temperature" = "red")
+
+ggplot(clim_mwy, aes(x = year, y = tmax)) +
+  geom_point(aes(color = "Maximum Temperature")) +
+  stat_smooth(method="lm", col="red") +
+  scale_y_continuous(limits=c(min(clim_mwy$tmin), max(clim_mwy$tmax)))+
+  geom_point(data=clim_mwy, aes(x = year, tmin, color = "Minimum Temperature")) +
+  stat_smooth(data=clim_mwy, aes(x = year, tmin), col="blue", method="lm") +
+  labs(y = "Average Annual Temperature (Farenheit)",
+       x = "Year",
+       colour = "") +
+  scale_color_manual(values = colors) +
+  annotate(geom="text", x=2010, y=52, label="+0.07 F/year",
+              color="red") +
+  annotate(geom="text", x=2010, y=35, label="+0.05 F/year",
+              color="blue") +
+  theme_minimal()
+
+ggsave("temp_ave.jpeg")
+
+```
+
+```{r}
+# Calculate slope of trend lines - tmin
+res_min = lm(tmin~year, data=clim_mwy)
+summary(res_min)
+confint(res_min,"year", level=0.95)
+
+# Calculate slope of trend lines - tmax
+res_max = lm(tmax~year, data=clim_mwy)
+summary(res_max)
+confint(res_max,"year", level=0.95)
+
+```
+
+Slope of minimum temperature is 0.05 F/year and is statistically significant, 95% confidence interval = [0.02, 0.08]
+Slope of maximum temperature is 0.07 F/year and is statistically significant, 95% confidence interval = [0.04, 0.11]
+
+```{r}
+#Run some statistical tests
+
+MannKendall(clim_mwy$tmin)
+MannKendall(clim_mwy$tmax)
+
+```
+Both show statistically significant trends.
+
+
+# Extremes
+
+```{r}
+# Create a df with number of freezing days
+clim$freeze = ifelse(clim$tmin <= 32, 1, 0)
+clim_pk <- clim %>% 
+  drop_na() %>% 
+  mutate(year = year(date_2)) %>% 
+  group_by(year) %>% 
+  summarize(ndayfr=sum(freeze)) %>% 
+  filter(year != 1968,
+         year != 2021)
+
+# Plot dataframe
+ggplot(clim_pk, aes(year, ndayfr))+
+  geom_point(col = 'blue')+
+  stat_smooth(data=clim_pk, aes(x = year, ndayfr), col="blue", method="lm") +
+  labs(x = 'Year',
+       y="Number of Freezing Days") + 
+  theme_minimal() 
+
+ggsave("freeze_days.jpeg")
+```
+```{r}
+# Calculate slope of trend lines - freezing days
+res_freez = lm(ndayfr~year, data=clim_pk)
+summary(res_freez)
+confint(res_freez,"year", level=0.95)
+```
+Slope of freezing days is -0.42 days/year but is not statistically significant, 95% confidence interval = [-0.93, 0.09]
+
+```{r}
+#Run some statistical tests
+MannKendall(clim_pk$ndayfr)
+```
+Not statistically significant
+
+```{r}
+# Compare two time periods
+res_early = lm(ndayfr~year, data=subset(clim_pk, clim_pk$year %in% c(1969:1990)))
+summary(res_early)
+
+res_late = lm(ndayfr~year, data=subset(clim_pk, clim_pk$year %in% c(2000:2020)))
+summary(res_late)
+
+```
+Slope for both periods was approximately -2 days per year. Capturing droughts during both periods. Both are statistically significant declines
+
