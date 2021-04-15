@@ -64,6 +64,33 @@ ggplot(clim_mwy) +
 
 ggsave("temp_min.jpeg")
 
+# ggplot with min and max
+
+clim_ave <- clim_mwy %>% 
+  pivot_longer(cols = 2:3,
+               names_to = "min_max",
+               values_to = "temp")
+
+ggplot(clim_ave, aes(x = year, y = temp)) +
+  stat_smooth(aes(color = min_max), method = "lm",
+              alpha = 0.25,
+              show.legend = FALSE) +
+  geom_point(aes(color = min_max)) +
+  scale_color_manual(values = c("#BB4430", "#464D77"),
+                     labels = c("Max Temp", 
+                                  "Min Temp")) + 
+  labs(y = "Average Annual Temperature (F)",
+       x = "Year",
+       color = NULL) +
+  annotate(geom="text", x=2007, y=33, label="+0.05 F/year",
+              color="#464D77") +
+  annotate(geom="text", x=2007, y=63, label="+0.07 F/year",
+              color="#BB4430") +
+  theme_minimal() 
+
+ggsave("temp_ave.png",
+       height = 2.6,
+       width = 7)
 ```
 
 ```{r}
@@ -109,14 +136,19 @@ clim_pk <- clim %>%
 
 # Plot dataframe
 ggplot(clim_pk, aes(year, ndayfr))+
-  geom_point(col = 'blue')+
-  stat_smooth(data=clim_pk, aes(x = year, ndayfr), col="blue", method="lm") +
+  stat_smooth(data=clim_pk, aes(x = year, ndayfr), col="#464D77", method="lm", alpha = 0.25) +
+  geom_point(col = '#464D77')+
   labs(x = 'Year',
        y="Number of Freezing Days") + 
   theme_minimal() 
 
 ggsave("freeze_days.jpeg")
+
+ggsave("freeze_days.png",
+       height = 2.5,
+       width = 7)
 ```
+
 ```{r}
 # Calculate slope of trend lines - freezing days
 res_freez = lm(ndayfr~year, data=clim_pk)

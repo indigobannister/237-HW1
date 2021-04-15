@@ -46,6 +46,12 @@ ggplot(precip_monthly, aes(x = month, y = total_prcp)) +
 precip_yearly <- precip %>% 
   group_by(year) %>% 
   summarize(total_prcp = sum(prcp))
+```
+
+Total precipitation
+
+```{r}
+# four seasons
 
 precip_seasonal <- precip %>% 
   mutate("season" = factor(case_when(
@@ -56,11 +62,7 @@ precip_seasonal <- precip %>%
     levels = c("Winter", "Spring", "Summer", "Fall"))) %>% 
   group_by(year, season) %>% 
   summarize(total_prcp = sum(prcp))
-```
 
-Total precipitation
-
-```{r}
 ggplot(precip_seasonal, aes(x = year, y = total_prcp)) + 
   geom_col(fill = "grey30",
            color = NA,
@@ -79,6 +81,11 @@ ggplot(precip_seasonal, aes(x = year, y = total_prcp)) +
        y = "Total Precipitation (mm)",
        fill = "Season") +
   theme_minimal()
+```
+
+
+```{r}
+# two seasons 
 
 precip_2seasons <- precip %>% 
   mutate("season" = factor(case_when(
@@ -107,7 +114,7 @@ ggplot(precip_2seasons, aes(x = year, y = total_prcp)) +
   theme_minimal()
 
 ggsave("seasonal_precip.png",
-       height = 5,
+       height = 2.6,
        width = 7)
 ```
 
@@ -191,7 +198,10 @@ extreme_change <- extreme_days %>%
   mutate("frequency_change" = ((extreme_days/extreme_days_thres-1) * 100),
          "pos" = case_when(frequency_change > 0 ~ "positive",
                            frequency_change < 0 ~ "negative"))
+```
 
+
+```{r}
 ggplot(extreme_change, aes(x = year, y = frequency_change)) + 
   geom_col(aes(fill = pos),
            show.legend = FALSE) +
@@ -203,10 +213,10 @@ ggplot(extreme_change, aes(x = year, y = frequency_change)) +
   scale_fill_manual(values = c("#353A5A", "#464D77")) + 
   theme_minimal() + 
   labs(x = "Year",
-       y = "Number of Extreme Precipitation Days \nRelative to 1980-1990 Average (%)")
+       y = "Number of Extreme \nPrecipitation Days Relative \nto 1980-1990 Average (%)")
 
 ggsave("extreme_precip.png",
-       height = 5,
+       height = 2.5,
        width = 7)
 ```
 
