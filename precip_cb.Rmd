@@ -1,0 +1,233 @@
+---
+title: "Precipitation - CB"
+author: "Cameryn Brock"
+date: "4/14/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+library(lubridate)
+library(janitor)
+library(Kendall)
+```
+
+```{r}
+# using data from noaa - fallen leaf instead of airport because there's more longer back
+# read in data
+trends <- read_csv("fallen_leaf_precip.csv") %>% 
+  clean_names()
+
+precip <- trends %>% 
+  select(c(date, prcp)) %>% 
+  drop_na() %>% 
+  mutate(month = month(date, label = TRUE),
+         year = year(date)) %>% 
+  filter(year %in% c(1980:2020)) %>% 
+  rename("prcp_in" = prcp) %>% 
+  mutate("prcp" = prcp_in * 25.4)
+
+# total monthly and yearly
+
+precip_monthly <- precip %>% 
+  mutate("month_year" = floor_date(date, "month")) %>% 
+  group_by(month_year) %>% 
+  summarise("total_prcp" = sum(prcp)) %>% 
+  mutate("month" = month(month_year, label = TRUE),
+         "year" = year(month_year))
+
+ggplot(precip_monthly, aes(x = month, y = total_prcp)) + 
+  geom_col()
+
+precip_yearly <- precip %>% 
+  group_by(year) %>% 
+  summarize(total_prcp = sum(prcp))
+
+precip_seasonal <- precip %>% 
+  mutate("season" = factor(case_when(
+    month %in% c("Dec", "Jan", "Feb") ~ "Winter",
+    month %in% c("Mar", "Apr", "May") ~ "Spring",
+    month %in% c("Jun", "Jul", "Aug") ~ "Summer",
+    month %in% c("Sep", "Oct", "Nov") ~ "Fall"),
+    levels = c("Winter", "Spring", "Summer", "Fall"))) %>% 
+  group_by(year, season) %>% 
+  summarize(total_prcp = sum(prcp))
+```
+
+Total precipitation
+
+```{r}
+ggplot(precip_seasonal, aes(x = year, y = total_prcp)) + 
+  geom_col(fill = "grey30",
+           color = NA,
+           alpha = 0.09) + 
+  geom_col(aes(fill = season),
+           position = "dodge") +
+  stat_smooth(data = precip_yearly, 
+              aes(x = year, y = total_prcp),
+              color = "grey30",
+              size = 0.9,
+              method = "lm",
+              se = FALSE) +
+  scale_fill_manual(values = c("#464D77", "#7FDCD1",
+                               "#F6AE2D", "#BB4430")) + 
+  labs(x = "Year",
+       y = "Total Precipitation (mm)",
+       fill = "Season") +
+  theme_minimal()
+
+precip_2seasons <- precip %>% 
+  mutate("season" = factor(case_when(
+    month %in% c("Nov", "Dec", "Jan", "Feb", "Mar") ~ "Nov-Mar",
+    month %in% c("Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct") ~ "Apr-Oct"),
+    levels = c("Nov-Mar", "Apr-Oct"))) %>% 
+  group_by(year, season) %>% 
+  summarize(total_prcp = sum(prcp))
+
+ggplot(precip_2seasons, aes(x = year, y = total_prcp)) + 
+  geom_col(fill = "grey30",
+           color = NA,
+           alpha = 0.3) + 
+  geom_col(aes(fill = season),
+           position = "dodge") +
+  stat_smooth(data = precip_yearly, 
+              aes(x = year, y = total_prcp),
+              color = "royalblue",
+              size = 0.9,
+              method = "lm",
+              alpha = 0.15) +
+  scale_fill_manual(values = c("#464D77", "#F6AE2D")) + 
+  labs(x = "Year",
+       y = "Total Precipitation (mm)",
+       fill = "Season") +
+  theme_minimal()
+
+ggsave("seasonal_precip.png",
+       height = 5,
+       width = 7)
+```
+
+
+```{r}
+# calculate slope of trend
+
+# yearly
+lm_yearly <- lm(total_prcp~year, data = precip_yearly)
+summary(lm_yearly)
+# not significant
+
+# yearly in winter
+precip_winter <- precip_seasonal %>% 
+  filter(season == "Winter")
+lm_winter <- lm(total_prcp ~ year, data = precip_winter)
+summary(lm_winter)
+# not significant
+
+# yearly in spring
+precip_spring <- precip_seasonal %>% 
+  filter(season == "Spring")
+lm_spring <- lm(total_prcp ~ year, data = precip_spring)
+summary(lm_spring)
+# not significant
+
+# yearly in summer
+precip_summer <- precip_seasonal %>% 
+  filter(season == "Summer")
+lm_summer <- lm(total_prcp ~ year, data = precip_summer)
+summary(lm_summer)
+# not significant
+
+# yearly in fall
+precip_fall <- precip_seasonal %>% 
+  filter(season == "Fall")
+lm_fall <- lm(total_prcp ~ year, data = precip_fall)
+summary(lm_fall)
+# not significant
+```
+
+Statistical tests
+
+```{r}
+# MannKendall
+MannKendall(precip_yearly$total_prcp)
+# not significant
+
+# subset ttest
+t.test(subset(precip_yearly$total_prcp,
+              precip_yearly$year %in% 1980:1990),
+       subset(precip_yearly$total_prcp,
+              precip_yearly$year %in% 2010:2020))
+# not significant
+```
+
+Days with extreme precipitation
+
+```{r}
+historic_precip <- precip %>% 
+  filter(year %in% 1980:1990,
+         !prcp == 0)
+
+historic_thres <- quantile(historic_precip$prcp, 0.9)
+historic_thres
+
+extreme_days <- precip %>% 
+  mutate("extreme" = case_when(
+    prcp >= historic_thres ~ 1,
+    prcp < historic_thres ~ 0)) %>% 
+  group_by(year) %>% 
+  summarize(extreme_days = sum(extreme))
+
+extreme_days_historic <- extreme_days %>% 
+  filter(year %in% 1980:1990)
+
+extreme_days_thres <- mean(extreme_days_historic$extreme_days)
+extreme_days_thres
+
+extreme_change <- extreme_days %>% 
+  mutate("frequency_change" = ((extreme_days/extreme_days_thres-1) * 100),
+         "pos" = case_when(frequency_change > 0 ~ "positive",
+                           frequency_change < 0 ~ "negative"))
+
+ggplot(extreme_change, aes(x = year, y = frequency_change)) + 
+  geom_col(aes(fill = pos),
+           show.legend = FALSE) +
+  geom_hline(yintercept = 0,
+             color = "grey30") +
+  stat_smooth(method = "lm",
+              color = "royalblue",
+              alpha = 0.15) +
+  scale_fill_manual(values = c("#353A5A", "#464D77")) + 
+  theme_minimal() + 
+  labs(x = "Year",
+       y = "Number of Extreme Precipitation Days \nRelative to 1980-1990 Average (%)")
+
+ggsave("extreme_precip.png",
+       height = 5,
+       width = 7)
+```
+
+Calculate slope of trend
+
+```{r}
+lm_extreme <- lm(extreme_days~year, data = extreme_days)
+summary(lm_extreme)
+# not significant
+```
+Statistical tests
+
+```{r}
+# MannKendall
+MannKendall(extreme_days$extreme_days)
+# not significant
+
+# subset ttest
+t.test(subset(extreme_days$extreme_days,
+              extreme_days$year %in% 1980:1990),
+       subset(extreme_days$extreme_days,
+              extreme_days$year %in% 2010:2020))
+# not significant
+```
